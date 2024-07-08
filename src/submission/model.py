@@ -1,4 +1,3 @@
-
 """
 GPT model:
 - the initial stem consists of a combination of token encoding and a positional encoding
@@ -23,6 +22,7 @@ from torch.nn import functional as F
 
 from .attention import CausalSelfAttention, CausalCrossAttention
 
+
 class GPTConfig:
     """ base GPT config, params common to all GPT versions """
     embd_pdrop = 0.1
@@ -34,14 +34,16 @@ class GPTConfig:
     def __init__(self, vocab_size, block_size, **kwargs):
         self.vocab_size = vocab_size
         self.block_size = block_size
-        for k,v in kwargs.items():
+        for k, v in kwargs.items():
             setattr(self, k, v)
+
 
 class GPT1Config(GPTConfig):
     """ GPT-1 like network roughly 125M params """
     n_layer = 12
     n_head = 12
     n_embd = 768
+
 
 class Block(nn.Module):
     """ an unassuming Transformer block """
@@ -63,6 +65,7 @@ class Block(nn.Module):
         x = x + self.mlp(self.ln2(x))
         return x
 
+
 class DownProjectBlock(nn.Module):
     """Transformer block used for down projection.
 
@@ -80,6 +83,7 @@ class DownProjectBlock(nn.Module):
     `self.C` will be used to compute the Query vector for the cross attention
     layer.
     """
+
     def __init__(self, config):
         super().__init__()
 
@@ -87,6 +91,18 @@ class DownProjectBlock(nn.Module):
         ### Hint: Copy over the code from Block and make necessary modifications.
 
         ### START CODE HERE
+        self.ln1 = nn.LayerNorm(config.n_embd)
+        self.ln2 = nn.LayerNorm(config.n_embd)
+        self.attn = CausalCrossAttention(config)
+        self.mlp = nn.Sequential(
+            nn.Linear(config.n_embd, 4 * config.n_embd),
+            nn.GELU(),
+            nn.Linear(4 * config.n_embd, config.n_embd),
+            nn.Dropout(config.resid_pdrop),
+        )
+        # TODO: - Get the right dimension here.
+
+        self.C = nn.Parameter(torch.randn(1, config.bottleneck_dim, config.n_embd))
         ### END CODE HERE
 
     def forward(self, x_input):
@@ -108,6 +124,7 @@ class UpProjectBlock(nn.Module):
     while using the CausalCrossAttention layer instead of the regular
     CausalSelfAttention layer.
     """
+
     def __init__(self, config):
         super().__init__()
         ### [part g]: Write your UpProjectBlock below.
@@ -127,6 +144,7 @@ class UpProjectBlock(nn.Module):
 
         ### START CODE HERE
         ### END CODE HERE
+
 
 class GPT(nn.Module):
     """  the full GPT language model, with a context size of block_size """
@@ -148,7 +166,7 @@ class GPT(nn.Module):
 
             # bottleneck basis based causal mask
             config.block_size = config.bottleneck_dim
-            self.blocks = nn.Sequential(*[Block(config) for _ in range(config.n_layer-2)])
+            self.blocks = nn.Sequential(*[Block(config) for _ in range(config.n_layer - 2)])
 
             # reset value of the block size back to the original.
             config.block_size = input_block_size
@@ -183,8 +201,8 @@ class GPT(nn.Module):
         assert t <= self.block_size, "Cannot forward, model block size (%d, %d) is exhausted." % (t, self.block_size)
 
         # forward the GPT model
-        token_embeddings = self.tok_emb(idx) # each index maps to a (learnable) vector
-        position_embeddings = self.pos_emb[:, :t, :] # each position maps to a (learnable) vector
+        token_embeddings = self.tok_emb(idx)  # each index maps to a (learnable) vector
+        position_embeddings = self.pos_emb[:, :t, :]  # each position maps to a (learnable) vector
         x_input = self.drop(token_embeddings + position_embeddings)
 
         if self.perceiver:

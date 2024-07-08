@@ -26,6 +26,9 @@ def initialize_perceiver_model(mconf, bottleneck_dim=32):
     ### [part g]: Make some other model here
 
     ### START CODE HERE
+    mconf.perceiver = True
+    mconf.bottleneck_dim = bottleneck_dim
+    attention_model = GPT(mconf)
     ### END CODE HERE
     return attention_model
 
@@ -70,14 +73,16 @@ def finetune(reading_params_path, finetune_corpus_path, pretrain_dataset, block_
     # --> Check for the reading parameters
     if reading_params_path is not None:
         # Loading the pretrained model
-        model = torch.load(reading_params_path, map_location=torch.device('cpu'))
+        model.load_state_dict(torch.load(reading_params_path, map_location=torch.device('cpu')))
         max_epochs = 10
         batch_size = 256
-        learning_rate = finetune_lr
+        learning_rate = 6e-4
         lr_decay = True
         warmup_tokens = 512 * 20
         final_tokens = 200 * len(pretrain_dataset) * block_size
         num_workers = 0
+        writer = writer
+
     else:
         max_epochs = 75
         batch_size = 256
@@ -86,6 +91,7 @@ def finetune(reading_params_path, finetune_corpus_path, pretrain_dataset, block_
         warmup_tokens = 512 * 20
         final_tokens = 200 * len(pretrain_dataset) * block_size
         num_workers = 0
+        writer = writer
     # Declaring the tconfig
     tconf = TrainerConfig(max_epochs=max_epochs,
                           batch_size=batch_size,
@@ -93,7 +99,8 @@ def finetune(reading_params_path, finetune_corpus_path, pretrain_dataset, block_
                           lr_decay=lr_decay,
                           warmup_tokens=warmup_tokens,
                           final_tokens=final_tokens,
-                          num_workers=num_workers)
+                          num_workers=num_workers,
+                          writer=writer)
     # -. Getting the dataset
     train_dataset = NameDataset(open(finetune_corpus_path, encoding='utf-8').read(), pretrain_dataset)
     # -> Declaring the trainer
@@ -128,8 +135,8 @@ def pretrain(pretrain_dataset, block_size, model, pretrain_lr=6e-3, writer=None)
                           batch_size=128,
                           learning_rate=pretrain_lr,
                           lr_decay=True,
-                          warmup_tokens=512*20,
-                          final_tokens=200*len(pretrain_dataset)*block_size,
+                          warmup_tokens=512 * 20,
+                          final_tokens=200 * len(pretrain_dataset) * block_size,
                           num_workers=0)
     trainer_obj = Trainer(model, pretrain_dataset, None, tconf)
     print("Hai this is Saikrishna Dirisala")
