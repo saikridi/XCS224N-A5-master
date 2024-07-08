@@ -123,6 +123,16 @@ def pretrain(pretrain_dataset, block_size, model, pretrain_lr=6e-3, writer=None)
     tconf = None  # TrainerConfig object (see trainer.py for more details)
 
     ### START CODE HERE
+    # Declaring the tconfig
+    tconf = TrainerConfig(max_epochs=650,
+                          batch_size=128,
+                          learning_rate=pretrain_lr,
+                          lr_decay=True,
+                          warmup_tokens=512*20,
+                          final_tokens=200*len(pretrain_dataset)*block_size,
+                          num_workers=0)
+    trainer_obj = Trainer(model, pretrain_dataset, None, tconf)
+    print("Hai this is Saikrishna Dirisala")
     ### END CODE HERE
     return tconf, trainer_obj
 
